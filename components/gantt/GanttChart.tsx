@@ -6,6 +6,7 @@ import type { SVGGantt } from "gantt";
 import { GanttLegend } from "./GanttLegend";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/store/useAppStore";
 
 interface GanttChartProps {
     /** Array of tasks to display in the Gantt chart */
@@ -31,6 +32,24 @@ export function GanttChart({
         vertical: true,
         dragThreshold: 10,
     });
+    const getTaskNumber = useAppStore((state) => state.getTaskNumber);
+
+    /**
+     * Get indentation string based on task hierarchy depth
+     */
+    const getIndentation = (task: Task): string => {
+        let depth = 0;
+        let currentTask = task;
+
+        while (currentTask.parent) {
+            depth++;
+            const parent = tasks.find((t) => t.id === currentTask.parent);
+            if (!parent) break;
+            currentTask = parent;
+        }
+
+        return "\u2003".repeat(depth);
+    };
 
     useEffect(() => {
         // Only run on client-side
@@ -49,17 +68,20 @@ export function GanttChart({
                     currentContainer.innerHTML = "";
                 }
 
-                // Convert tasks to gantt format with ID prefix
-                const ganttData = tasks.map((task) => ({
-                    id: task.id,
-                    parent: task.parent,
-                    type: task.type,
-                    text: `#${task.id} ${task.text}`,
-                    start: task.start,
-                    end: task.end,
-                    percent: task.percent,
-                    links: task.links,
-                }));
+                const ganttData = tasks.map((task) => {
+                    const taskNumber = getTaskNumber(task.id);
+                    const indentation = getIndentation(task);
+                    return {
+                        id: task.id,
+                        parent: task.parent,
+                        type: task.type,
+                        text: `${indentation}${taskNumber} ${task.text}`,
+                        start: task.start,
+                        end: task.end,
+                        percent: task.percent,
+                        links: task.links,
+                    };
+                });
 
                 // Prepare gantt options
                 const ganttOptions: GanttOptions = {
@@ -117,7 +139,7 @@ export function GanttChart({
         return () => {
             ganttInstanceRef.current = null;
         };
-    }, [tasks, viewMode, onTaskClick, options]);
+    }, [tasks, viewMode, onTaskClick, options, getTaskNumber]);
 
     return (
         <div className="flex flex-col h-full">

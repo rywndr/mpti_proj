@@ -77,15 +77,16 @@ export function GanttLegend() {
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <div className="flex items-center gap-1.5 cursor-help">
-                                    <div className="w-3 h-3 rounded-full bg-green-600" />
+                                    <div className="w-3 h-3 rounded-full bg-[#fbbf24]" />
                                     <span className="text-muted-foreground">
-                                        Completed
+                                        Warning
                                     </span>
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p className="text-xs">
-                                    Task has been finished (100% complete)
+                                    Tasks approaching deadline or requiring
+                                    attention
                                 </p>
                             </TooltipContent>
                         </Tooltip>
@@ -93,48 +94,15 @@ export function GanttLegend() {
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <div className="flex items-center gap-1.5 cursor-help">
-                                    <div className="w-3 h-3 rounded-full bg-blue-600" />
+                                    <div className="w-3 h-3 rounded-full bg-[#ef4444]" />
                                     <span className="text-muted-foreground">
-                                        In Progress
+                                        Danger
                                     </span>
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p className="text-xs">
-                                    Task is currently being worked on
-                                </p>
-                            </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1.5 cursor-help">
-                                    <div className="w-3 h-3 rounded-full bg-red-600" />
-                                    <span className="text-muted-foreground">
-                                        Blocked
-                                    </span>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p className="text-xs">
-                                    Task cannot proceed due to dependencies or
-                                    issues
-                                </p>
-                            </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1.5 cursor-help">
-                                    <div className="w-3 h-3 rounded-full bg-gray-400" />
-                                    <span className="text-muted-foreground">
-                                        Pending
-                                    </span>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p className="text-xs">
-                                    Task has not started yet
+                                    Overdue or blocked tasks
                                 </p>
                             </TooltipContent>
                         </Tooltip>
@@ -143,7 +111,7 @@ export function GanttLegend() {
                     {/* Separator */}
                     <div className="h-4 w-px bg-border" />
 
-                    {/* Other Elements */}
+                    {/* Others */}
                     <div className="flex items-center gap-3">
                         <Tooltip>
                             <TooltipTrigger asChild>

@@ -1,117 +1,89 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { use } from "react";
 import {
     ResizablePanelGroup,
     ResizablePanel,
     ResizableHandle,
 } from "@/components/ui/resizable";
-import { Topbar } from "@/components/layout/Topbar";
+import { AppHeader, AppHeaderActions } from "@/components/layout/AppHeader";
 import { TaskList } from "@/components/tasks/TaskList";
 import { GanttChart } from "@/components/gantt/GanttChart";
 import { TaskDetailsModal } from "@/components/tasks/TaskDetailsModal";
-import { sampleTasks, getTasksWithCalculatedCosts } from "@/lib/sampleData";
-import type { ViewMode, Task } from "@/types";
+import { TaskDialog } from "@/components/forms/TaskDialog";
+import { DeleteConfirmDialog } from "@/components/forms/DeleteConfirmDialog";
+import { useProjectPage } from "@/hooks/useProjectPage";
 
-export default function Home() {
-    // State management
-    const [viewMode, setViewMode] = useState<ViewMode>("week");
-    const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
-    const [tasks] = useState(getTasksWithCalculatedCosts(sampleTasks));
-    const [modalOpen, setModalOpen] = useState(false);
-    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+interface ProjectPageProps {
+    params: Promise<{
+        id: string;
+    }>;
+}
 
-    /**
-     * Handle view mode changes (day/week/month)
-     */
-    const handleViewModeChange = (mode: ViewMode) => {
-        setViewMode(mode);
-    };
+/**
+ * Project page - displays Gantt chart and task list for a specific project
+ */
+export default function ProjectPage({ params }: ProjectPageProps) {
+    // Unwrap params Promise for Next.js 15+
+    const { id } = use(params);
+    const {
+        // Data
+        project,
+        tasks,
 
-    /**
-     * Handle task selection from task list
-     */
-    const handleTaskSelect = (taskId: number) => {
-        setSelectedTaskId(taskId);
-        const task = tasks.find((t) => t.id === taskId);
-        if (task) {
-            setSelectedTask(task);
-            setModalOpen(true);
-        }
-    };
+        // View state
+        viewMode,
+        selectedTaskId,
 
-    /**
-     * Handle task click from Gantt chart
-     */
-    const handleGanttTaskClick = (task: { id: number }) => {
-        setSelectedTaskId(task.id);
-        const foundTask = tasks.find((t) => t.id === task.id);
-        if (foundTask) {
-            setSelectedTask(foundTask);
-            setModalOpen(true);
-        }
-    };
+        // Modal state
+        modalOpen,
+        setModalOpen,
+        selectedTask,
+        taskDialogOpen,
+        setTaskDialogOpen,
+        editingTask,
+        deleteDialogOpen,
+        setDeleteDialogOpen,
+        deletingTask,
 
-    /**
-     * Handle add task button click
-     */
-    const handleAddTask = () => {
-        // TODO: Implement add task dialog/modal
-        console.log("Add task clicked");
-        alert("Add Task functionality - To be implemented");
-    };
+        // Handlers
+        handleViewModeChange,
+        handleTaskSelect,
+        handleGanttTaskClick,
+        handleAddTask,
+        handleBack,
+        handleExport,
+        handleEditTask,
+        handleDeleteTask,
+        confirmDeleteTask,
+        handleTaskUpdate,
+        handleTaskSuccess,
+    } = useProjectPage(id);
 
-    const router = useRouter();
-
-    /**
-     * Handle back button click - navigate to homepage
-     */
-    const handleBack = () => {
-        router.push("/");
-    };
-
-    /**
-     * Handle export button click
-     */
-    const handleExport = () => {
-        // TODO: Implement export functionality
-        console.log("Export button clicked");
-        alert("Export functionality - To be implemented");
-    };
-
-    /**
-     * Handle edit task from modal
-     */
-    const handleEditTask = (task: Task) => {
-        // TODO: Implement edit task
-        console.log("Edit task:", task);
-        alert(`Edit task: ${task.text} - To be implemented`);
-    };
-
-    /**
-     * Handle delete task from modal
-     */
-    const handleDeleteTask = (task: Task) => {
-        // TODO: Implement delete task
-        console.log("Delete task:", task);
-        alert(`Delete task: ${task.text} - To be implemented`);
-    };
+    // Show nothing while redirecting if project not found
+    if (!project) {
+        return null;
+    }
 
     return (
         <div className="h-screen flex flex-col bg-background">
-            {/* Top  Bar */}
-            <Topbar
+            {/* Top Bar */}
+            <AppHeader
+                onBack={handleBack}
                 viewMode={viewMode}
                 onViewModeChange={handleViewModeChange}
-                onAddTask={handleAddTask}
-                onBack={handleBack}
-                onExport={handleExport}
+                actions={
+                    <AppHeaderActions
+                        onExport={handleExport}
+                        onAddTask={handleAddTask}
+                    />
+                }
             />
 
+            {/* Main Content - Resizable Panels */}
             <div className="flex-1 overflow-hidden">
                 <ResizablePanelGroup direction="horizontal" className="h-full">
-                    {/* Task List */}
+                    {/* Task List Panel */}
                     <ResizablePanel
                         defaultSize={30}
                         minSize={20}
@@ -122,6 +94,7 @@ export default function Home() {
                             tasks={tasks}
                             selectedTaskId={selectedTaskId}
                             onTaskSelect={handleTaskSelect}
+                            onTaskUpdate={handleTaskUpdate}
                         />
                     </ResizablePanel>
 
@@ -131,7 +104,7 @@ export default function Home() {
                         className="bg-border hover:bg-primary/20 transition-colors"
                     />
 
-                    {/*Gantt Chart */}
+                    {/* Gantt Chart Panel */}
                     <ResizablePanel
                         defaultSize={70}
                         minSize={50}
@@ -153,6 +126,30 @@ export default function Home() {
                 task={selectedTask}
                 onEdit={handleEditTask}
                 onDelete={handleDeleteTask}
+            />
+
+            {/* Task Form Dialog */}
+            <TaskDialog
+                open={taskDialogOpen}
+                onOpenChange={setTaskDialogOpen}
+                task={editingTask}
+                onSuccess={handleTaskSuccess}
+            />
+
+            {/* Delete Confirmation Dialog */}
+            <DeleteConfirmDialog
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}
+                onConfirm={confirmDeleteTask}
+                title="Delete Task"
+                itemName={deletingTask?.text}
+                description={
+                    deletingTask?.type === "group"
+                        ? `This will permanently delete the task group "${deletingTask.text}" and all its subtasks. This action cannot be undone.`
+                        : deletingTask
+                          ? `This will permanently delete "${deletingTask.text}". This action cannot be undone.`
+                          : undefined
+                }
             />
         </div>
     );
