@@ -54,3 +54,26 @@ export function formatCurrency(amount: number): string {
         maximumFractionDigits: 0,
     }).format(amount);
 }
+
+export function formatCurrencyForExport(amount: number): string {
+    return new Intl.NumberFormat("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
+}
+
+export function formatDateForExport(date: Date): string {
+    return new Intl.DateTimeFormat("en-US", {
+        month: "numeric",
+        day: "numeric",
+        year: "2-digit",
+    }).format(date);
+}
+
+export function sanitizeFileName(name: string): string {
+    return name
+        .replace(/[^a-z0-9]/gi, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "")
+        .toLowerCase();
+}

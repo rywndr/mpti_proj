@@ -1,5 +1,5 @@
 import { CheckCircle2, Clock, Circle, AlertCircle } from "lucide-react";
-import type { TaskStatus, TaskPriority } from "@/types";
+import type { TaskStatus, TaskPriority, Task } from "@/types";
 
 export function getStatusIcon(status?: TaskStatus) {
     switch (status) {
@@ -112,4 +112,36 @@ export function getStatusBadgeVariant(
         default:
             return "secondary";
     }
+}
+
+export function getTaskDepth(task: Task, tasks: Task[]): number {
+    let depth = 0;
+    let currentTask = task;
+
+    while (currentTask.parent) {
+        depth++;
+        const parent = tasks.find((t) => t.id === currentTask.parent);
+        if (!parent) break;
+        currentTask = parent;
+    }
+
+    return depth;
+}
+
+export function getTaskNumber(taskId: number, tasks: Task[]): string {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return "";
+
+    // If task has no parent, it's a top-level task
+    if (!task.parent) {
+        const topLevelTasks = tasks.filter((t) => !t.parent);
+        const index = topLevelTasks.findIndex((t) => t.id === taskId);
+        return (index + 1).toString();
+    }
+
+    // Task has a parent - get parent's number and add child index
+    const parentNumber = getTaskNumber(task.parent, tasks);
+    const siblings = tasks.filter((t) => t.parent === task.parent);
+    const childIndex = siblings.findIndex((t) => t.id === taskId);
+    return `${parentNumber}.${childIndex + 1}`;
 }

@@ -12,6 +12,7 @@ import { GanttChart } from "@/components/gantt/GanttChart";
 import { TaskDetailsModal } from "@/components/tasks/TaskDetailsModal";
 import { TaskDialog } from "@/components/forms/TaskDialog";
 import { DeleteConfirmDialog } from "@/components/forms/DeleteConfirmDialog";
+import { ExportDialog } from "@/components/export/ExportDialog";
 import { useProjectPage } from "@/hooks/useProjectPage";
 
 interface ProjectPageProps {
@@ -52,12 +53,17 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         handleGanttTaskClick,
         handleAddTask,
         handleBack,
-        handleExport,
+        openExportDialog,
         handleEditTask,
         handleDeleteTask,
         confirmDeleteTask,
         handleTaskUpdate,
         handleTaskSuccess,
+
+        // Export
+        isExportDialogOpen,
+        closeExportDialog,
+        handleExportAction,
     } = useProjectPage(id);
 
     // Show nothing while redirecting if project not found
@@ -74,7 +80,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                 onViewModeChange={handleViewModeChange}
                 actions={
                     <AppHeaderActions
-                        onExport={handleExport}
+                        onExport={openExportDialog}
                         onAddTask={handleAddTask}
                     />
                 }
@@ -150,6 +156,14 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                           ? `This will permanently delete "${deletingTask.text}". This action cannot be undone.`
                           : undefined
                 }
+            />
+
+            {/* Export Dialog */}
+            <ExportDialog
+                open={isExportDialogOpen}
+                onOpenChange={closeExportDialog}
+                onExport={handleExportAction}
+                projectName={project.name}
             />
         </div>
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import type { Task, GanttOptions, ViewMode } from "@/types";
 import type { SVGGantt } from "gantt";
 import { GanttLegend } from "./GanttLegend";
@@ -37,19 +37,22 @@ export function GanttChart({
     /**
      * Get indentation string based on task hierarchy depth
      */
-    const getIndentation = (task: Task): string => {
-        let depth = 0;
-        let currentTask = task;
+    const getIndentation = useCallback(
+        (task: Task): string => {
+            let depth = 0;
+            let currentTask = task;
 
-        while (currentTask.parent) {
-            depth++;
-            const parent = tasks.find((t) => t.id === currentTask.parent);
-            if (!parent) break;
-            currentTask = parent;
-        }
+            while (currentTask.parent) {
+                depth++;
+                const parent = tasks.find((t) => t.id === currentTask.parent);
+                if (!parent) break;
+                currentTask = parent;
+            }
 
-        return "\u2003".repeat(depth);
-    };
+            return "\u2003".repeat(depth);
+        },
+        [tasks],
+    );
 
     useEffect(() => {
         // Only run on client-side
@@ -139,10 +142,10 @@ export function GanttChart({
         return () => {
             ganttInstanceRef.current = null;
         };
-    }, [tasks, viewMode, onTaskClick, options, getTaskNumber]);
+    }, [tasks, viewMode, onTaskClick, options, getTaskNumber, getIndentation]);
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full" id="gantt-chart">
             {/* Header */}
             <div className="px-3 py-2.5 border-b bg-background shrink-0">
                 <h2 className="text-sm font-semibold tracking-tight">
@@ -192,6 +195,7 @@ export function GanttChart({
                     <div
                         ref={containerRef}
                         className="w-full h-full min-h-[400px] gantt-wrapper"
+                        data-export-target="true"
                     />
                 )}
             </div>

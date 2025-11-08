@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/useAppStore";
 import { getTasksWithCalculatedCosts } from "@/lib/sampleData";
+import { useExport } from "./useExport";
 import type { ViewMode, Task } from "@/types";
 
 /**
@@ -99,14 +100,16 @@ export function useProjectPage(projectId: string) {
         router.push("/");
     };
 
-    /**
-     * Handle export button click
-     */
-    const handleExport = () => {
-        // TODO: Implement export functionality
-        console.log("Export button clicked");
-        toast.info("Export functionality - Coming soon");
-    };
+    // Export
+    const {
+        isExportDialogOpen,
+        openExportDialog,
+        closeExportDialog,
+        handleExport: handleExportAction,
+    } = useExport({
+        projectName: project?.name || "Project",
+        tasks,
+    });
 
     /**
      * Handle edit task from modal
@@ -183,11 +186,16 @@ export function useProjectPage(projectId: string) {
         handleGanttTaskClick,
         handleAddTask,
         handleBack,
-        handleExport,
+        openExportDialog,
         handleEditTask,
         handleDeleteTask,
         confirmDeleteTask,
         handleTaskUpdate,
         handleTaskSuccess,
+
+        // Export
+        isExportDialogOpen,
+        closeExportDialog,
+        handleExportAction,
     };
 }
