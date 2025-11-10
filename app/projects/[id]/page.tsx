@@ -71,6 +71,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         <div className="h-screen flex flex-col bg-background">
             {/* Top Bar */}
             <AppHeader
+                title={project?.name || "Project"}
+                subtitle={project?.description || "Project Management"}
                 onBack={handleBack}
                 viewMode={viewMode}
                 onViewModeChange={handleViewModeChange}

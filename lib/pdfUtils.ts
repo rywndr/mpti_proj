@@ -1,7 +1,11 @@
 import jsPDF from "jspdf";
 import type { Task } from "@/types";
 import { formatDateForExport, formatCurrencyForExport } from "./formatters";
-import { getTaskDepth, getTaskNumber } from "./taskHelpers";
+import {
+    getTaskDepth,
+    getTaskNumber,
+    sortTasksHierarchically,
+} from "./taskHelpers";
 
 /**
  * Table column configuration
@@ -15,6 +19,7 @@ interface TableColumns {
     name: TableColumn;
     beginDate: TableColumn;
     endDate: TableColumn;
+    duration: TableColumn;
     cost: TableColumn;
 }
 
@@ -50,9 +55,10 @@ export function getTableColumns(
     margin: number,
     contentWidth: number,
 ): TableColumns {
-    const nameColWidth = contentWidth * 0.4;
+    const nameColWidth = contentWidth * 0.35;
     const dateColWidth = contentWidth * 0.15;
-    const costColWidth = contentWidth * 0.3;
+    const durationColWidth = contentWidth * 0.1;
+    const costColWidth = contentWidth * 0.25;
 
     return {
         name: { x: margin, width: nameColWidth },
@@ -61,8 +67,12 @@ export function getTableColumns(
             x: margin + nameColWidth + dateColWidth,
             width: dateColWidth,
         },
-        cost: {
+        duration: {
             x: margin + nameColWidth + dateColWidth * 2,
+            width: durationColWidth,
+        },
+        cost: {
+            x: margin + nameColWidth + dateColWidth * 2 + durationColWidth,
             width: costColWidth,
         },
     };
@@ -91,6 +101,7 @@ export function drawTableHeader(
     pdf.text("Name", columns.name.x + 2, yPosition + 5);
     pdf.text("Begin date", columns.beginDate.x + 2, yPosition + 5);
     pdf.text("End date", columns.endDate.x + 2, yPosition + 5);
+    pdf.text("Duration", columns.duration.x + 2, yPosition + 5);
     pdf.text("Cost", columns.cost.x + 2, yPosition + 5);
 
     yPosition += rowHeight;
@@ -144,6 +155,13 @@ export function drawTaskRow(
         columns.endDate.x + 2,
         yPosition + 5,
     );
+
+    // Duration (calculate days between start and end)
+    const durationDays = Math.ceil(
+        (task.end.getTime() - task.start.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    const durationText = `${durationDays}d`;
+    pdf.text(durationText, columns.duration.x + 2, yPosition + 5);
 
     // Cost (right-aligned)
     const costText = task.cost ? formatCurrencyForExport(task.cost) : "0";
@@ -216,7 +234,10 @@ export function addTaskListPage(
     // Table rows
     pdf.setFontSize(9);
 
-    tasks.forEach((task) => {
+    // Sort tasks hierarchically so children appear after parents
+    const sortedTasks = sortTasksHierarchically(tasks);
+
+    sortedTasks.forEach((task) => {
         // Check if we need a new page
         if (yPosition > pageHeight - margin - 15) {
             pdf.addPage();

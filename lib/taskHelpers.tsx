@@ -145,3 +145,19 @@ export function getTaskNumber(taskId: number, tasks: Task[]): string {
     const childIndex = siblings.findIndex((t) => t.id === taskId);
     return `${parentNumber}.${childIndex + 1}`;
 }
+
+export function sortTasksHierarchically(tasks: Task[]): Task[] {
+    const sorted: Task[] = [];
+
+    const addTaskAndChildren = (task: Task) => {
+        sorted.push(task);
+        const children = tasks.filter((t) => t.parent === task.id);
+        children.forEach((child) => addTaskAndChildren(child));
+    };
+
+    // Start with top-level tasks
+    const topLevelTasks = tasks.filter((t) => !t.parent);
+    topLevelTasks.forEach((task) => addTaskAndChildren(task));
+
+    return sorted;
+}
