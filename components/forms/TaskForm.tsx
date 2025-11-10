@@ -18,6 +18,7 @@ import {
 interface TaskFormProps {
     task?: Task;
     parentId?: number;
+    tasks: Task[];
     onSubmit: (data: TaskFormData) => void;
     onCancel: () => void;
     isSubmitting?: boolean;
@@ -26,6 +27,7 @@ interface TaskFormProps {
 export function TaskForm({
     task,
     parentId,
+    tasks,
     onSubmit,
     onCancel,
     isSubmitting,
@@ -39,7 +41,8 @@ export function TaskForm({
         taskType,
         isMilestone,
         getTaskNumber,
-    } = useTaskFormLogic({ task, parentId });
+        handleDurationChange,
+    } = useTaskFormLogic({ task, parentId, tasks });
 
     const handleSubmit = (data: TaskFormData) => {
         onSubmit(data);
@@ -67,6 +70,7 @@ export function TaskForm({
                 <DateRangeSection
                     control={form.control}
                     isSubmitting={isSubmitting}
+                    onDurationChange={handleDurationChange}
                 />
 
                 <StatusPrioritySection

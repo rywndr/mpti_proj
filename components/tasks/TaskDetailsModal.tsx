@@ -2,8 +2,8 @@
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { Task } from "@/types";
-import { useAppStore } from "@/store/useAppStore";
 import { isTaskOverdue } from "@/lib/taskHelpers";
+import { getTaskNumber } from "@/lib/taskUtils";
 import {
     TaskDetailHeader,
     TaskDetailBadges,
@@ -20,6 +20,8 @@ interface TaskDetailsModalProps {
     onOpenChange: (open: boolean) => void;
     /** The task to display */
     task: Task | null;
+    /** All tasks for calculating task numbers */
+    tasks: Task[];
     /** Callback when edit button is clicked */
     onEdit?: (task: Task) => void;
     /** Callback when delete button is clicked */
@@ -30,16 +32,17 @@ export function TaskDetailsModal({
     open,
     onOpenChange,
     task,
+    tasks,
     onEdit,
     onDelete,
 }: TaskDetailsModalProps) {
-    const getTaskNumber = useAppStore((state) => state.getTaskNumber);
-    const getTask = useAppStore((state) => state.getTask);
-
     if (!task) return null;
 
     const isOverdue = isTaskOverdue(task.end, task.status);
-    const taskNumber = getTaskNumber(task.id);
+    const taskNumber = getTaskNumber(task.id, tasks);
+
+    const getTask = (id: number) => tasks.find((t) => t.id === id);
+    const getTaskNumberHelper = (id: number) => getTaskNumber(id, tasks);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -52,7 +55,7 @@ export function TaskDetailsModal({
                     <TaskDetailInfo
                         task={task}
                         taskNumber={taskNumber}
-                        getTaskNumber={getTaskNumber}
+                        getTaskNumber={getTaskNumberHelper}
                     />
 
                     <TaskDetailProgress task={task} />
@@ -60,7 +63,7 @@ export function TaskDetailsModal({
                     <TaskDetailDependencies
                         task={task}
                         getTask={getTask}
-                        getTaskNumber={getTaskNumber}
+                        getTaskNumber={getTaskNumberHelper}
                     />
 
                     <TaskDetailActions

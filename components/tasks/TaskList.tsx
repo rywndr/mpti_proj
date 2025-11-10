@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Task } from "@/types";
-import { useAppStore } from "@/store/useAppStore";
+import { getTaskNumber, hasChildren } from "@/lib/taskUtils";
 import { TaskListHeader, TaskListEmpty, TaskCard } from "./task-list-item";
 
 interface TaskListProps {
@@ -23,8 +23,6 @@ export function TaskList({
     onTaskSelect,
     onTaskUpdate,
 }: TaskListProps) {
-    const getTaskNumber = useAppStore((state) => state.getTaskNumber);
-    const hasChildren = useAppStore((state) => state.hasChildren);
     const [expandedGroups, setExpandedGroups] = useState<Set<number>>(
         new Set(),
     );
@@ -42,14 +40,21 @@ export function TaskList({
         });
     };
 
-    // Filter tasks to only show top-level tasks and children of expanded groups
-    const visibleTasks = tasks.filter((task) => {
-        // Always show top-level tasks
-        if (!task.parent) return true;
+    const visibleTasks: Task[] = [];
 
-        // Show child tasks only if parent is expanded
-        return expandedGroups.has(task.parent);
-    });
+    const addTaskAndChildren = (task: Task, depth: number = 0) => {
+        visibleTasks.push(task);
+
+        // If this task is expanded and has children, add them
+        if (expandedGroups.has(task.id)) {
+            const children = tasks.filter((t) => t.parent === task.id);
+            children.forEach((child) => addTaskAndChildren(child, depth + 1));
+        }
+    };
+
+    // Start with top-level tasks only
+    const topLevelTasks = tasks.filter((t) => !t.parent);
+    topLevelTasks.forEach((task) => addTaskAndChildren(task));
 
     return (
         <div className="flex flex-col h-full">
@@ -61,14 +66,17 @@ export function TaskList({
                         <TaskListEmpty />
                     ) : (
                         visibleTasks.map((task) => {
-                            const taskHasChildren = hasChildren(task.id);
+                            const taskHasChildren = hasChildren(task.id, tasks);
                             const isExpanded = expandedGroups.has(task.id);
 
                             return (
                                 <div key={task.id} className="relative">
                                     <TaskCard
                                         task={task}
-                                        taskNumber={getTaskNumber(task.id)}
+                                        taskNumber={getTaskNumber(
+                                            task.id,
+                                            tasks,
+                                        )}
                                         hasChildren={taskHasChildren}
                                         isExpanded={isExpanded}
                                         isSelected={selectedTaskId === task.id}

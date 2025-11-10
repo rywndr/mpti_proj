@@ -1,38 +1,45 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { taskSchema, type TaskFormData } from "@/lib/validations";
 import type { Task } from "@/types";
-import { useAppStore } from "@/store/useAppStore";
-import { getTasksWithCalculatedCosts } from "@/lib/sampleData";
+import {
+    getTaskNumber,
+    hasChildren,
+    calculateDuration,
+    calculateEndDate,
+    calculateStartDate,
+} from "@/lib/taskUtils";
 
 interface UseTaskFormLogicProps {
     task?: Task;
     parentId?: number;
+    tasks: Task[];
 }
 
-export function useTaskFormLogic({ task, parentId }: UseTaskFormLogicProps) {
-    const currentProjectId = useAppStore((state) => state.currentProjectId);
-    const tasksMap = useAppStore((state) => state.tasksMap);
-    const hasChildren = useAppStore((state) => state.hasChildren);
-    const getTaskNumber = useAppStore((state) => state.getTaskNumber);
-
-    // Get tasks with calculated costs from tasksMap
-    const tasks = useMemo(() => {
-        if (!currentProjectId) return [];
-        const projectTasks = tasksMap[currentProjectId] || [];
-        return getTasksWithCalculatedCosts(projectTasks);
-    }, [currentProjectId, tasksMap]);
-
-    // Check if the current task is a group with children
+export function useTaskFormLogic({
+    task,
+    parentId,
+    tasks,
+}: UseTaskFormLogicProps) {
+    // Check if current task is a group with children
     const isGroupWithChildren =
-        task?.type === "group" && task?.id ? hasChildren(task.id) : false;
+        task?.type === "group" && task?.id
+            ? hasChildren(task.id, tasks)
+            : false;
 
     const defaultEndDate = useMemo(() => {
         const date = new Date();
         date.setDate(date.getDate() + 7);
         return date;
     }, []);
+
+    const defaultDuration = useMemo(() => {
+        if (task?.start && task?.end) {
+            return calculateDuration(task.start, task.end);
+        }
+        return 7;
+    }, [task]);
 
     const form = useForm<TaskFormData>({
         resolver: zodResolver(taskSchema),
@@ -41,6 +48,7 @@ export function useTaskFormLogic({ task, parentId }: UseTaskFormLogicProps) {
             description: task?.description ?? "",
             start: task?.start ?? new Date(),
             end: task?.end ?? defaultEndDate,
+            duration: defaultDuration,
             status: task?.status ?? "pending",
             priority: task?.priority ?? "medium",
             assignee: task?.assignee ?? "",
@@ -52,17 +60,27 @@ export function useTaskFormLogic({ task, parentId }: UseTaskFormLogicProps) {
         },
     });
 
+    const startDate = form.watch("start");
+    const endDate = form.watch("end");
+    const duration = form.watch("duration");
+
+    useEffect(() => {
+        const newDuration = calculateDuration(startDate, endDate);
+        if (duration !== newDuration) {
+            form.setValue("duration", newDuration, { shouldValidate: false });
+        }
+    }, [startDate, endDate, form, duration]);
+
     const fieldArray = useFieldArray({
         control: form.control,
         name: "links",
     });
 
-    // Get potential parent tasks (groups only, excluding current task and its descendants)
+    // Get potential parent tasks
     const potentialParents = useMemo(() => {
         return tasks.filter((t) => {
             if (t.type !== "group") return false;
             if (task && t.id === task.id) return false;
-            // Prevent circular dependencies - exclude descendants
             if (task) {
                 let current = t;
                 while (current.parent) {
@@ -76,11 +94,9 @@ export function useTaskFormLogic({ task, parentId }: UseTaskFormLogicProps) {
         });
     }, [tasks, task]);
 
-    // Get potential dependency tasks (exclude current task and its descendants)
     const potentialDependencies = useMemo(() => {
         return tasks.filter((t) => {
             if (task && t.id === task.id) return false;
-            // Prevent circular dependencies
             if (task) {
                 let current = t;
                 while (current.parent) {
@@ -97,6 +113,17 @@ export function useTaskFormLogic({ task, parentId }: UseTaskFormLogicProps) {
     const taskType = form.watch("type");
     const isMilestone = taskType === "milestone";
 
+    // Helper to get task number
+    const getTaskNumberHelper = (taskId: number) =>
+        getTaskNumber(taskId, tasks);
+
+    // Helper to handle duration change
+    const handleDurationChange = (newDuration: number) => {
+        const currentStart = form.getValues("start");
+        const newEnd = calculateEndDate(currentStart, newDuration);
+        form.setValue("end", newEnd);
+    };
+
     return {
         form,
         fieldArray,
@@ -105,6 +132,7 @@ export function useTaskFormLogic({ task, parentId }: UseTaskFormLogicProps) {
         potentialDependencies,
         taskType,
         isMilestone,
-        getTaskNumber,
+        getTaskNumber: getTaskNumberHelper,
+        handleDurationChange,
     };
 }

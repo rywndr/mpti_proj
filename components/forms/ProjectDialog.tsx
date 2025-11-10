@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
     Dialog,
     DialogContent,
@@ -7,9 +6,12 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { ProjectForm } from "./ProjectForm";
-import { useAppStore, type Project } from "@/store/useAppStore";
+import {
+    useCreateProject,
+    useUpdateProject,
+    type Project,
+} from "@/hooks/useProjects";
 import type { ProjectFormData } from "@/lib/validations";
-import { toast } from "sonner";
 
 interface ProjectDialogProps {
     open: boolean;
@@ -24,29 +26,26 @@ export function ProjectDialog({
     project,
     onSuccess,
 }: ProjectDialogProps) {
-    const addProject = useAppStore((state) => state.addProject);
-    const updateProject = useAppStore((state) => state.updateProject);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const createProject = useCreateProject();
+    const updateProject = useUpdateProject();
 
     const handleSubmit = async (data: ProjectFormData) => {
-        setIsSubmitting(true);
         try {
             if (project) {
                 // Update existing project
-                updateProject(project.id, data);
-                toast.success("Project updated successfully");
-                onSuccess?.(project);
+                const updatedProject = await updateProject.mutateAsync({
+                    id: project.id,
+                    data,
+                });
+                onSuccess?.(updatedProject);
             } else {
                 // Create new project
-                const newProject = addProject(data);
-                toast.success("Project created successfully");
+                const newProject = await createProject.mutateAsync(data);
                 onSuccess?.(newProject);
             }
             onOpenChange(false);
         } catch (error) {
-            toast.error("Something went wrong. Please try again.");
-        } finally {
-            setIsSubmitting(false);
+            console.error("Project operation failed:", error);
         }
     };
 
@@ -71,7 +70,9 @@ export function ProjectDialog({
                     project={project}
                     onSubmit={handleSubmit}
                     onCancel={handleCancel}
-                    isSubmitting={isSubmitting}
+                    isSubmitting={
+                        createProject.isPending || updateProject.isPending
+                    }
                 />
             </DialogContent>
         </Dialog>

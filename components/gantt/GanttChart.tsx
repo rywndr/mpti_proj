@@ -6,7 +6,7 @@ import type { SVGGantt } from "gantt";
 import { GanttLegend } from "./GanttLegend";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { cn } from "@/lib/utils";
-import { useAppStore } from "@/store/useAppStore";
+import { getTaskNumber } from "@/lib/taskUtils";
 
 interface GanttChartProps {
     /** Array of tasks to display in the Gantt chart */
@@ -32,7 +32,6 @@ export function GanttChart({
         vertical: true,
         dragThreshold: 10,
     });
-    const getTaskNumber = useAppStore((state) => state.getTaskNumber);
 
     /**
      * Get indentation string based on task hierarchy depth
@@ -71,8 +70,19 @@ export function GanttChart({
                     currentContainer.innerHTML = "";
                 }
 
-                const ganttData = tasks.map((task) => {
-                    const taskNumber = getTaskNumber(task.id);
+                // Sort tasks in hierarchical order
+                const sortedTasks: Task[] = [];
+                const addTaskAndChildren = (task: Task) => {
+                    sortedTasks.push(task);
+                    const children = tasks.filter((t) => t.parent === task.id);
+                    children.forEach((child) => addTaskAndChildren(child));
+                };
+
+                const topLevelTasks = tasks.filter((t) => !t.parent);
+                topLevelTasks.forEach((task) => addTaskAndChildren(task));
+
+                const ganttData = sortedTasks.map((task) => {
+                    const taskNumber = getTaskNumber(task.id, tasks);
                     const indentation = getIndentation(task);
                     return {
                         id: task.id,
@@ -142,7 +152,7 @@ export function GanttChart({
         return () => {
             ganttInstanceRef.current = null;
         };
-    }, [tasks, viewMode, onTaskClick, options, getTaskNumber, getIndentation]);
+    }, [tasks, viewMode, onTaskClick, options, getIndentation]);
 
     return (
         <div className="flex flex-col h-full" id="gantt-chart">

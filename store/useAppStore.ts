@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import type { Task } from "@/types";
-import { sampleTasks, getTasksWithCalculatedCosts } from "@/lib/sampleData";
+import { getTasksWithCalculatedCosts } from "@/lib/sampleData";
+import {
+    getTaskNumber as getTaskNumberUtil,
+    hasChildren as hasChildrenUtil,
+    getChildren as getChildrenUtil,
+    isDescendantOf,
+} from "@/lib/taskUtils";
 
 /**
  * Project interface
@@ -11,6 +17,7 @@ export interface Project {
     description?: string;
     startDate: Date;
     endDate: Date;
+    userId: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -18,36 +25,7 @@ export interface Project {
 /**
  * Sample projects for demo
  */
-const sampleProjects: Project[] = [
-    {
-        id: "1",
-        name: "E-Commerce Platform Redesign",
-        description:
-            "Complete overhaul of the existing e-commerce platform with modern UI/UX",
-        startDate: new Date("2024-01-15"),
-        endDate: new Date("2024-06-30"),
-        createdAt: new Date("2024-01-01"),
-        updatedAt: new Date("2024-01-01"),
-    },
-    {
-        id: "2",
-        name: "Mobile App Development",
-        description: "Native mobile applications for iOS and Android",
-        startDate: new Date("2024-02-01"),
-        endDate: new Date("2024-08-31"),
-        createdAt: new Date("2024-01-15"),
-        updatedAt: new Date("2024-01-15"),
-    },
-    {
-        id: "3",
-        name: "Infrastructure Migration",
-        description: "Migrate services to cloud infrastructure",
-        startDate: new Date("2024-03-01"),
-        endDate: new Date("2024-09-30"),
-        createdAt: new Date("2024-02-01"),
-        updatedAt: new Date("2024-02-01"),
-    },
-];
+const sampleProjects: Project[] = [];
 
 interface AppState {
     // Projects
@@ -91,11 +69,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
     projects: sampleProjects,
     currentProjectId: null,
-    tasksMap: {
-        "1": sampleTasks,
-        "2": [],
-        "3": [],
-    },
+    tasksMap: {},
     nextTaskId: 1000,
 
     setCurrentProjectId: (id) => set({ currentProjectId: id }),
@@ -180,7 +154,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                         // Check if this task is a child or descendant of the parent
                         if (
                             task.parent === newTask.parent ||
-                            isDescendantOf(task, newTask.parent, projectTasks)
+                            isDescendantOf(task, newTask.parent!, projectTasks)
                         ) {
                             lastChildIndex = i;
                         } else {
@@ -254,21 +228,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (!currentProjectId) return "";
 
         const tasks = tasksMap[currentProjectId] || [];
-        const task = tasks.find((t) => t.id === taskId);
-        if (!task) return "";
-
-        // If task has no parent, it's a top-level task
-        if (!task.parent) {
-            const topLevelTasks = tasks.filter((t) => !t.parent);
-            const index = topLevelTasks.findIndex((t) => t.id === taskId);
-            return (index + 1).toString();
-        }
-
-        // Task has a parent - get parent's number and add child index
-        const parentNumber = get().getTaskNumber(task.parent);
-        const siblings = tasks.filter((t) => t.parent === task.parent);
-        const childIndex = siblings.findIndex((t) => t.id === taskId);
-        return `${parentNumber}.${childIndex + 1}`;
+        return getTaskNumberUtil(taskId, tasks);
     },
 
     hasChildren: (taskId) => {
@@ -276,7 +236,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (!currentProjectId) return false;
 
         const tasks = tasksMap[currentProjectId] || [];
-        return tasks.some((t) => t.parent === taskId);
+        return hasChildrenUtil(taskId, tasks);
     },
 
     getChildren: (taskId) => {
@@ -285,23 +245,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
         const tasks = tasksMap[currentProjectId] || [];
         const tasksWithCosts = getTasksWithCalculatedCosts(tasks);
-        return tasksWithCosts.filter((t) => t.parent === taskId);
+        return getChildrenUtil(taskId, tasksWithCosts);
     },
 }));
-
-/**
- * Helper function to check if a task is a descendant of a parent
- */
-function isDescendantOf(
-    task: Task,
-    parentId: number,
-    allTasks: Task[],
-): boolean {
-    if (task.parent === parentId) return true;
-    if (!task.parent) return false;
-
-    const parent = allTasks.find((t) => t.id === task.parent);
-    if (!parent) return false;
-
-    return isDescendantOf(parent, parentId, allTasks);
-}

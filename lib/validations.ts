@@ -54,6 +54,10 @@ export const taskSchema = z
         end: z.date({
             message: "End date is required",
         }),
+        duration: z
+            .number()
+            .min(1, "Duration must be at least 1 day")
+            .optional(),
         status: z.enum(["pending", "in-progress", "completed", "blocked"]),
         priority: z.enum(["low", "medium", "high", "critical"]),
         assignee: z

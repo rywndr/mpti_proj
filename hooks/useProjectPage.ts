@@ -1,26 +1,22 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useAppStore } from "@/store/useAppStore";
+import { useProjects } from "@/hooks/useProjects";
+import { useTasks, useUpdateTask, useDeleteTask } from "@/hooks/useTasks";
 import { getTasksWithCalculatedCosts } from "@/lib/sampleData";
 import { useExport } from "./useExport";
 import type { ViewMode, Task } from "@/types";
 
-/**
- * Custom hook to manage project page state and logic
- * Encapsulates all state management, effects, and handlers
- */
 export function useProjectPage(projectId: string) {
     const router = useRouter();
-    const getProject = useAppStore((state) => state.getProject);
-    const tasksMap = useAppStore((state) => state.tasksMap);
-    const setCurrentProjectId = useAppStore(
-        (state) => state.setCurrentProjectId,
-    );
-    const deleteTask = useAppStore((state) => state.deleteTask);
-    const updateTask = useAppStore((state) => state.updateTask);
+
+    // Fetch data from API
+    const { data: projects = [] } = useProjects();
+    const { data: tasksData = [] } = useTasks(projectId);
+    const updateTaskMutation = useUpdateTask();
+    const deleteTaskMutation = useDeleteTask();
 
     // State
     const [viewMode, setViewMode] = useState<ViewMode>("week");
@@ -33,37 +29,22 @@ export function useProjectPage(projectId: string) {
     const [deletingTask, setDeletingTask] = useState<Task | undefined>();
 
     // Get project directly by ID
-    const project = getProject(projectId);
+    const project = projects.find((p) => p.id === projectId);
 
-    // Get tasks with calculated costs for this specific project
-    const tasks = useMemo(() => {
-        const projectTasks = tasksMap[projectId] || [];
-        return getTasksWithCalculatedCosts(projectTasks);
-    }, [projectId, tasksMap]);
-
-    // Set current project on mount
-    useEffect(() => {
-        setCurrentProjectId(projectId);
-    }, [projectId, setCurrentProjectId]);
+    const tasks = getTasksWithCalculatedCosts(tasksData);
 
     // Check if project exists and redirect if not found
     useEffect(() => {
-        if (!project) {
+        if (projects.length > 0 && !project) {
             toast.error("Project not found");
             router.push("/");
         }
-    }, [project, router]);
+    }, [project, projects.length, router]);
 
-    /**
-     * Handle view mode changes (day/week/month)
-     */
     const handleViewModeChange = (mode: ViewMode) => {
         setViewMode(mode);
     };
 
-    /**
-     * Handle task selection from task list
-     */
     const handleTaskSelect = (taskId: number) => {
         setSelectedTaskId(taskId);
         const task = tasks.find((t) => t.id === taskId);
@@ -73,9 +54,6 @@ export function useProjectPage(projectId: string) {
         }
     };
 
-    /**
-     * Handle task click from Gantt chart
-     */
     const handleGanttTaskClick = (task: { id: number }) => {
         setSelectedTaskId(task.id);
         const foundTask = tasks.find((t) => t.id === task.id);
@@ -85,17 +63,11 @@ export function useProjectPage(projectId: string) {
         }
     };
 
-    /**
-     * Handle add task button click
-     */
     const handleAddTask = () => {
         setEditingTask(undefined);
         setTaskDialogOpen(true);
     };
 
-    /**
-     * Handle back button click - navigate to homepage
-     */
     const handleBack = () => {
         router.push("/");
     };
@@ -111,47 +83,50 @@ export function useProjectPage(projectId: string) {
         tasks,
     });
 
-    /**
-     * Handle edit task from modal
-     */
     const handleEditTask = (task: Task) => {
         setModalOpen(false);
         setEditingTask(task);
         setTaskDialogOpen(true);
     };
 
-    /**
-     * Handle delete task from modal
-     */
     const handleDeleteTask = (task: Task) => {
         setModalOpen(false);
         setDeletingTask(task);
         setDeleteDialogOpen(true);
     };
 
-    /**
-     * Confirm delete task
-     */
-    const confirmDeleteTask = () => {
+    const confirmDeleteTask = async () => {
         if (deletingTask) {
-            deleteTask(deletingTask.id);
-            toast.success(`Task "${deletingTask.text}" deleted successfully`);
-            setDeletingTask(undefined);
-            setSelectedTask(null);
-            setSelectedTaskId(null);
+            try {
+                await deleteTaskMutation.mutateAsync({
+                    id: deletingTask.id,
+                    projectId,
+                });
+                toast.success(
+                    `Task "${deletingTask.text}" deleted successfully`,
+                );
+                setDeletingTask(undefined);
+                setDeleteDialogOpen(false);
+                setSelectedTask(null);
+                setSelectedTaskId(null);
+            } catch (error) {
+                console.error("Failed to delete task:", error);
+            }
         }
     };
 
-    /**
-     * Handle task update (progress bar click)
-     */
-    const handleTaskUpdate = (taskId: number, updates: Partial<Task>) => {
-        updateTask(taskId, updates);
+    const handleTaskUpdate = async (taskId: number, updates: Partial<Task>) => {
+        try {
+            await updateTaskMutation.mutateAsync({
+                id: taskId,
+                projectId,
+                data: updates,
+            });
+        } catch (error) {
+            console.error("Failed to update task:", error);
+        }
     };
 
-    /**
-     * Handle successful task creation/edit
-     */
     const handleTaskSuccess = () => {
         // Refresh selected task if it was edited
         if (editingTask && selectedTask?.id === editingTask.id) {

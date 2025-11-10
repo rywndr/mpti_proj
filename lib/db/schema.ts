@@ -1,4 +1,12 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import {
+    pgTable,
+    text,
+    timestamp,
+    boolean,
+    integer,
+    real,
+    jsonb,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
     id: text("id").primaryKey(),
@@ -54,6 +62,48 @@ export const verification = pgTable("verification", {
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+        .defaultNow()
+        .$onUpdate(() => /* @__PURE__ */ new Date())
+        .notNull(),
+});
+
+export const project = pgTable("project", {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    startDate: timestamp("start_date").notNull(),
+    endDate: timestamp("end_date").notNull(),
+    userId: text("user_id")
+        .notNull()
+        .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+        .defaultNow()
+        .$onUpdate(() => /* @__PURE__ */ new Date())
+        .notNull(),
+});
+
+export const task = pgTable("task", {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    projectId: text("project_id")
+        .notNull()
+        .references(() => project.id, { onDelete: "cascade" }),
+    parentId: integer("parent_id"),
+    type: text("type").default("task"), // 'task', 'group', 'milestone'
+    text: text("text").notNull(),
+    description: text("description"),
+    startDate: timestamp("start_date").notNull(),
+    endDate: timestamp("end_date").notNull(),
+    percent: real("percent").default(0).notNull(),
+    status: text("status").default("pending"), // 'pending', 'in-progress', 'completed', 'blocked'
+    priority: text("priority").default("medium"), // 'low', 'medium', 'high', 'critical'
+    assignee: text("assignee"),
+    cost: real("cost"),
+    links: jsonb("links")
+        .default([])
+        .$type<Array<{ target: number; type: string }>>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
         .defaultNow()

@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2, Calendar, CheckCircle2, Users } from "lucide-react";
+import { Plus, Loader2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useAppStore, type Project } from "@/store/useAppStore";
-import { useProjectStats } from "@/hooks/useProjectStats";
+import {
+    useProjects,
+    useDeleteProject,
+    type Project,
+} from "@/hooks/useProjects";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { NewProjectCard } from "@/components/projects/NewProjectCard";
 import { AppHeader } from "@/components/layout/AppHeader";
@@ -17,9 +20,8 @@ import { useSession } from "@/lib/auth-client";
 export default function HomePage() {
     const router = useRouter();
     const { data: session, isPending } = useSession();
-    const projects = useAppStore((state) => state.projects);
-    const tasksMap = useAppStore((state) => state.tasksMap);
-    const deleteProject = useAppStore((state) => state.deleteProject);
+    const { data: projects = [], isLoading: isLoadingProjects } = useProjects();
+    const deleteProjectMutation = useDeleteProject();
 
     const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | undefined>();
@@ -28,58 +30,43 @@ export default function HomePage() {
         Project | undefined
     >();
 
-    // Calculate project statistics (memoized)
-    const projectStats = useProjectStats(projects, tasksMap);
-
-    /**
-     * Navigate to project details page
-     */
     const handleProjectClick = (projectId: string) => {
         router.push(`/projects/${projectId}`);
     };
 
-    /**
-     * Handle create new project
-     */
     const handleCreateProject = () => {
         setEditingProject(undefined);
         setIsProjectDialogOpen(true);
     };
 
-    /**
-     * Handle edit project
-     */
     const handleEditProject = (e: React.MouseEvent, project: Project) => {
         e.stopPropagation();
         setEditingProject(project);
         setIsProjectDialogOpen(true);
     };
 
-    /**
-     * Handle delete project
-     */
     const handleDeleteProject = (e: React.MouseEvent, project: Project) => {
         e.stopPropagation();
         setDeletingProject(project);
         setDeleteDialogOpen(true);
     };
 
-    /**
-     * Confirm delete project
-     */
-    const confirmDeleteProject = () => {
+    const confirmDeleteProject = async () => {
         if (deletingProject) {
-            deleteProject(deletingProject.id);
-            toast.success(
-                `Project "${deletingProject.name}" deleted successfully`,
-            );
-            setDeletingProject(undefined);
+            try {
+                await deleteProjectMutation.mutateAsync(deletingProject.id);
+                toast.success(
+                    `Project "${deletingProject.name}" deleted successfully`,
+                );
+                setDeletingProject(undefined);
+                setDeleteDialogOpen(false);
+            } catch (error) {
+                // Error is handled in the hook
+                console.error("Failed to delete project:", error);
+            }
         }
     };
 
-    /**
-     * Handle successful project creation/edit
-     */
     const handleProjectSuccess = (project: Project) => {
         if (!editingProject) {
             // Navigate to newly created project
@@ -87,8 +74,8 @@ export default function HomePage() {
         }
     };
 
-    // Show loading state while checking auth
-    if (isPending) {
+    // Show loading state while checking auth or loading projects
+    if (isPending || (session?.user && isLoadingProjects)) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-background">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -160,21 +147,16 @@ export default function HomePage() {
 
                         {/* Projects Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {projects.map((project) => {
-                                const stats = projectStats[project.id] || {
-                                    taskCount: 0,
-                                };
-                                return (
-                                    <ProjectCard
-                                        key={project.id}
-                                        project={project}
-                                        taskCount={stats.taskCount}
-                                        onProjectClick={handleProjectClick}
-                                        onEdit={handleEditProject}
-                                        onDelete={handleDeleteProject}
-                                    />
-                                );
-                            })}
+                            {projects.map((project) => (
+                                <ProjectCard
+                                    key={project.id}
+                                    project={project}
+                                    taskCount={0}
+                                    onProjectClick={handleProjectClick}
+                                    onEdit={handleEditProject}
+                                    onDelete={handleDeleteProject}
+                                />
+                            ))}
 
                             {/* Add New Project Card */}
                             <NewProjectCard onClick={handleCreateProject} />

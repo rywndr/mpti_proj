@@ -21,11 +21,7 @@ interface ProjectPageProps {
     }>;
 }
 
-/**
- * Project page - displays Gantt chart and task list for a specific project
- */
 export default function ProjectPage({ params }: ProjectPageProps) {
-    // Unwrap params Promise for Next.js 15+
     const { id } = use(params);
     const {
         // Data
@@ -86,7 +82,6 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                 }
             />
 
-            {/* Main Content - Resizable Panels */}
             <div className="flex-1 overflow-hidden">
                 <ResizablePanelGroup direction="horizontal" className="h-full">
                     {/* Task List Panel */}
@@ -130,6 +125,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                 open={modalOpen}
                 onOpenChange={setModalOpen}
                 task={selectedTask}
+                tasks={tasks}
                 onEdit={handleEditTask}
                 onDelete={handleDeleteTask}
             />
@@ -139,6 +135,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                 open={taskDialogOpen}
                 onOpenChange={setTaskDialogOpen}
                 task={editingTask}
+                projectId={id}
                 onSuccess={handleTaskSuccess}
             />
 
